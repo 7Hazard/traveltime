@@ -3,4 +3,4 @@ venv/
 
 data/trips/
 
-data/zones/
+__pycache__/
