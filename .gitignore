@@ -1,6 +1,6 @@
 
 venv/
 
-data/trips/
+data/trips/*.parquet
 
 __pycache__/

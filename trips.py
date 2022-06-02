@@ -1,43 +1,52 @@
 import pyarrow.parquet as pq
 import pandas as pd
 
-__trips = pq.read_table('data/trips/yellow_tripdata_2019-01.parquet')
-__trips: pd.DataFrame = __trips.to_pandas()
-__trips = __trips[["tpep_pickup_datetime", "tpep_dropoff_datetime", "trip_distance", "PULocationID", "DOLocationID"]]
+def readAndCleanData(filename, yellow=True):
+    pickupTime = "tpep_pickup_datetime" if yellow else "lpep_pickup_datetime"
+    dropoffTime = "lpep_dropoff_datetime" if yellow else "lpep_dropoff_datetime"
 
-# remove all rows with trip distance of 0
-__trips = __trips[__trips.trip_distance > 0.0]
+    __trips = pq.read_table(filename)
+    __trips: pd.DataFrame = __trips.to_pandas()
+    __trips = __trips[[pickupTime, dropoffTime, "trip_distance", "PULocationID", "DOLocationID"]]
 
-# remove all rows with pickup time before 2019-01-01 00:00:00
-__trips = __trips[__trips["tpep_pickup_datetime"] >= "2019-01-01 00:00:00"]
+    # remove all rows with trip distance of 0
+    __trips = __trips[__trips.trip_distance > 0.0]
 
-# remove all rows with pickup time after dropoff time
-__trips = __trips[__trips["tpep_pickup_datetime"] <= __trips["tpep_dropoff_datetime"]]
+    # remove all rows with pickup time before 2019-01-01 00:00:00
+    __trips = __trips[__trips[pickupTime] >= "2019-01-01 00:00:00"]
 
-# remove all rows with dropoff time before 2019-01-01 00:00:00
-__trips = __trips[__trips["tpep_dropoff_datetime"] >= "2019-01-01 00:00:00"]
+    # remove all rows with pickup time after dropoff time
+    __trips = __trips[__trips[pickupTime] <= __trips[dropoffTime]]
 
-# add column with trip time in seconds
-__trips["trip_time"] = (pd.to_datetime(__trips["tpep_dropoff_datetime"]) - pd.to_datetime(__trips["tpep_pickup_datetime"])).dt.total_seconds()
+    # remove all rows with dropoff time before 2019-01-01 00:00:00
+    __trips = __trips[__trips[dropoffTime] >= "2019-01-01 00:00:00"]
 
-# change tpep_pickup_datetime year to start of epoch year
-__trips["tpep_pickup_datetime"] = __trips["tpep_pickup_datetime"].apply(lambda x: x.replace(year=1970))
+    # add column with trip time in seconds
+    __trips["trip_time"] = (pd.to_datetime(__trips[dropoffTime]) - pd.to_datetime(__trips[pickupTime])).dt.total_seconds()
 
-# convert tpep_pickup_datetime to numeric values
-__trips["tpep_pickup_datetime"] = pd.to_numeric(__trips["tpep_pickup_datetime"])
+    # remove dropoff time column
+    __trips = __trips.drop(columns=[dropoffTime])
 
-# print(__trips)
+    # change pickupTime year to start of epoch year
+    __trips[pickupTime] = __trips[pickupTime].apply(lambda x: x.replace(year=1970))
 
-# plot [tpep_pickup_datetime, trip_distance, PUlocationID, and DOLocationID] vs trip_time
-# trips.plot(x=["tpep_pickup_datetime", "trip_distance", "PULocationID", "DOLocationID"], y="trip_time", kind="scatter", figsize=(12, 6))
-# plt.scatter(trips["tpep_pickup_datetime"], trips["trip_distance"], trips["PULocationID"], trips["DOLocationID"], c=trips["trip_time"], cmap="tab20")
+    # convert pickupTime to numeric values
+    __trips[pickupTime] = pd.to_numeric(__trips[pickupTime])
 
-# get ["tpep_pickup_datetime", "trip_distance", "PULocationID", "DOLocationID"] from trips as X values
-x = __trips[["tpep_pickup_datetime", "trip_distance", "PULocationID", "DOLocationID"]].to_numpy()
+    # plot pickupTime trip_distance, PUlocationID, and DOLocationID] vs trip_time
+    # trips.plot(x=[pickupTime, "trip_distance", "PULocationID", "DOLocationID"], y="trip_time", kind="scatter", figsize=(12, 6))
+    # plt.scatter(trips[pickupTime], trips["trip_distance"], trips["PULocationID"], trips["DOLocationID"], c=trips["trip_time"], cmap="tab20")
 
-# print(x)
+    # get [pickupTime, "trip_distance", "PULocationID", "DOLocationID"] from trips as X values
+    x = __trips[[pickupTime, "trip_distance", "PULocationID", "DOLocationID"]].to_numpy()
 
-# get ["trip_time"] from trips as y values
-y = __trips[["trip_time"]].to_numpy().ravel()
+    # get ["trip_time"] from trips as y values
+    y = __trips[["trip_time"]].to_numpy().ravel()
 
-# print(y)
+    return __trips, x, y
+
+trips, x, y = readAndCleanData("data/trips/green_tripdata_2019-01.parquet", False)
+# trips, x, y = readAndCleanData("data/trips/yellow_tripdata_2019-01.parquet")
+print(f"Trip data: \n{trips}\n")
+print(f"X values: \n{x}\n")
+print(f"Y values: \n{y}\n")
